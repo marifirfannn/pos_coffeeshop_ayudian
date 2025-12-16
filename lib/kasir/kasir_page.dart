@@ -19,6 +19,16 @@ class _KasirPageState extends State<KasirPage> {
   int get total => cart.fold(0, (s, i) => s + i.subtotal);
 
   void addToCart(Map p) {
+    final stockEnabled = (p['stock_enabled'] ?? true) == true;
+    final stock = (p['stock'] ?? 0) is int
+        ? p['stock'] as int
+        : int.tryParse(p['stock'].toString()) ?? 0;
+
+    if (stockEnabled && stock <= 0) {
+      notify(context, 'Stok habis', error: true);
+      return;
+    }
+
     final i = cart.indexWhere((e) => e.id == p['id']);
     setState(() {
       if (i >= 0) {
@@ -160,6 +170,22 @@ class _KasirPageState extends State<KasirPage> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      if ((p['stock_enabled'] ?? true) == true &&
+                          (((p['stock'] ?? 0) is int
+                                  ? (p['stock'] as int)
+                                  : int.tryParse(p['stock'].toString()) ?? 0) <=
+                              0))
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Text(
+                            'HABIS',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 4),
                       Text(
                         'Rp ${p['price']}',
@@ -445,22 +471,25 @@ class _KasirPageState extends State<KasirPage> {
                         }
 
                         try {
-                          await TransactionService.createTransaction(
+                          // ✅ Default checkout bikin transaksi PENDING dulu.
+                          // Status bisa diubah di halaman transaksi (PAID / VOID / REFUND / CANCEL).
+                          await TransactionService.createPendingTransaction(
                             userId: user.id,
                             total: total,
                             payment: payment,
                             items: cartItems(),
                           );
 
+                          if (!mounted) return;
                           Navigator.pop(context);
-                          notify(context, 'Checkout berhasil');
+                          notify(context, 'Transaksi dibuat (PENDING)');
                           setState(() => cart.clear());
                         } catch (e) {
                           debugPrint('CHECKOUT ERROR => $e');
                           notify(context, e.toString(), error: true);
                         }
                       },
-                      child: const Text('Bayar'),
+                      child: const Text('Buat transaksi (Pending)'),
                     ),
                   ),
                 ],

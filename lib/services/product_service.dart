@@ -17,6 +17,8 @@ class ProductService {
     required int price,
     required String categoryId,
     String? imageUrl,
+    int stock = 0,
+    bool stockEnabled = true,
   }) async {
     await _db.from('products').insert({
       'name': name,
@@ -24,6 +26,8 @@ class ProductService {
       'category_id': categoryId,
       'image_url': imageUrl,
       'is_active': true,
+      'stock': stock,
+      'stock_enabled': stockEnabled,
     });
   }
 
@@ -34,6 +38,8 @@ class ProductService {
     required String categoryId,
     String? imageUrl,
     required bool isActive,
+    required int stock,
+    required bool stockEnabled,
   }) async {
     await _db
         .from('products')
@@ -43,6 +49,8 @@ class ProductService {
           'category_id': categoryId,
           'image_url': imageUrl,
           'is_active': isActive,
+          'stock': stock,
+          'stock_enabled': stockEnabled,
         })
         .eq('id', id);
   }
@@ -53,5 +61,29 @@ class ProductService {
 
   static Future<void> toggleActive(String id, bool value) async {
     await _db.from('products').update({'is_active': value}).eq('id', id);
+  }
+
+  static Future<void> toggleStockEnabled(String id, bool value) async {
+    await _db.from('products').update({'stock_enabled': value}).eq('id', id);
+  }
+
+  /// Update stok manual (angka saja).
+  /// delta: + untuk tambah stok, - untuk kurang stok
+  static Future<void> adjustStock({
+    required String productId,
+    required int delta,
+  }) async {
+    // Pakai RPC biar update stok atomic dan aman untuk concurrency
+    await _db.rpc(
+      'adjust_stock',
+      params: {'p_product_id': productId, 'p_delta': delta},
+    );
+  }
+
+  static Future<void> setStock({
+    required String productId,
+    required int stock,
+  }) async {
+    await _db.from('products').update({'stock': stock}).eq('id', productId);
   }
 }

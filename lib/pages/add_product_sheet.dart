@@ -1,11 +1,12 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/notifier.dart';
 import '../services/categorie_service.dart';
 import '../services/product_service.dart';
 import '../services/storage_service.dart';
-import '../core/notifier.dart';
 
 class AddProductSheet extends StatefulWidget {
   final VoidCallback onSaved;
@@ -20,15 +21,18 @@ class AddProductSheet extends StatefulWidget {
 class _AddProductSheetState extends State<AddProductSheet> {
   final name = TextEditingController();
   final price = TextEditingController();
+  final stock = TextEditingController(text: '0');
 
-  String? categoryId;
   bool loading = false;
 
-  late Future<List> categories;
+  String? categoryId;
 
-  final _picker = ImagePicker();
   File? _pickedImage;
   String? _existingImageUrl;
+
+  bool stockEnabled = true;
+
+  late Future<List<Map<String, dynamic>>> categories;
 
   @override
   void initState() {
@@ -36,10 +40,13 @@ class _AddProductSheetState extends State<AddProductSheet> {
     categories = CategoryService.getCategories();
 
     if (widget.product != null) {
-      name.text = widget.product!['name'];
-      price.text = widget.product!['price'].toString();
-      categoryId = widget.product!['category_id'];
-      _existingImageUrl = widget.product!['image_url'];
+      final p = widget.product!;
+      name.text = (p['name'] ?? '').toString();
+      price.text = (p['price'] ?? '').toString();
+      stock.text = (p['stock'] ?? 0).toString();
+      categoryId = (p['category_id'] ?? '').toString();
+      _existingImageUrl = (p['image_url'] ?? '').toString();
+      stockEnabled = (p['stock_enabled'] ?? true) == true;
     }
   }
 
@@ -47,38 +54,62 @@ class _AddProductSheetState extends State<AddProductSheet> {
   void dispose() {
     name.dispose();
     price.dispose();
+    stock.dispose();
     super.dispose();
   }
 
   Future<void> pickImage() async {
-    final xfile = await _picker.pickImage(
+    final picker = ImagePicker();
+    final x = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80,
-      maxWidth: 1200,
+      imageQuality: 70,
     );
+    if (x == null) return;
 
-    if (xfile == null) return;
+    setState(() => _pickedImage = File(x.path));
+  }
 
-    setState(() => _pickedImage = File(xfile.path));
+  Widget _imageBox() {
+    return InkWell(
+      onTap: pickImage,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 160,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey.shade900,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: _pickedImage != null
+            ? Image.file(_pickedImage!, fit: BoxFit.cover)
+            : (_existingImageUrl != null && _existingImageUrl!.isNotEmpty)
+            ? Image.network(_existingImageUrl!, fit: BoxFit.cover)
+            : const Center(child: Text('Tap untuk pilih foto produk')),
+      ),
+    );
   }
 
   Future<void> save() async {
-    if (name.text.isEmpty || price.text.isEmpty || categoryId == null) {
-      notify(context, 'Semua field wajib diisi', error: true);
+    if (name.text.trim().isEmpty ||
+        price.text.trim().isEmpty ||
+        categoryId == null) {
+      notify(context, 'Nama, harga, dan kategori wajib diisi', error: true);
       return;
     }
 
-    final p = int.tryParse(price.text);
-    if (p == null) {
+    final priceVal = int.tryParse(price.text.trim());
+    if (priceVal == null) {
       notify(context, 'Harga harus angka', error: true);
       return;
     }
 
-    setState(() => loading = true);
+    final stockVal = int.tryParse(stock.text.trim()) ?? 0;
 
+    setState(() => loading = true);
     try {
-      // upload image kalau ada yang dipilih
       String? imageUrl = _existingImageUrl;
+
       if (_pickedImage != null) {
         imageUrl = await StorageService.uploadProductImage(_pickedImage!);
       }
@@ -86,51 +117,32 @@ class _AddProductSheetState extends State<AddProductSheet> {
       if (widget.product == null) {
         await ProductService.addProduct(
           name: name.text.trim(),
-          price: p,
+          price: priceVal,
           categoryId: categoryId!,
           imageUrl: imageUrl,
+          stock: stockVal,
+          stockEnabled: stockEnabled,
         );
-        notify(context, 'Produk ditambahkan');
       } else {
         await ProductService.updateProduct(
-          id: widget.product!['id'],
+          id: widget.product!['id'].toString(),
           name: name.text.trim(),
-          price: p,
+          price: priceVal,
           categoryId: categoryId!,
           imageUrl: imageUrl,
-          isActive: widget.product!['is_active'],
+          isActive: (widget.product!['is_active'] ?? true) == true,
+          stock: stockVal,
+          stockEnabled: stockEnabled,
         );
-        notify(context, 'Produk diupdate');
       }
 
       widget.onSaved();
+      notify(context, 'Produk tersimpan');
     } catch (e) {
-      notify(context, 'Gagal simpan produk: $e', error: true);
+      notify(context, e.toString(), error: true);
     } finally {
       if (mounted) setState(() => loading = false);
     }
-  }
-
-  Widget _imageBox() {
-    return InkWell(
-      onTap: loading ? null : pickImage,
-      child: Container(
-        height: 130,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade400),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: _pickedImage != null
-              ? Image.file(_pickedImage!, fit: BoxFit.cover)
-              : (_existingImageUrl != null && _existingImageUrl!.isNotEmpty)
-              ? Image.network(_existingImageUrl!, fit: BoxFit.cover)
-              : const Center(child: Text('Tap untuk pilih foto produk')),
-        ),
-      ),
-    );
   }
 
   @override
@@ -153,35 +165,51 @@ class _AddProductSheetState extends State<AddProductSheet> {
             controller: name,
             decoration: const InputDecoration(labelText: 'Nama Produk'),
           ),
+          const SizedBox(height: 8),
           TextField(
             controller: price,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(labelText: 'Harga'),
           ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: stock,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Stok (angka)'),
+          ),
+          const SizedBox(height: 8),
+
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Stok Aktif'),
+            subtitle: const Text(
+              'Kalau OFF, stok tidak berkurang saat transaksi',
+            ),
+            value: stockEnabled,
+            onChanged: (v) => setState(() => stockEnabled = v),
+          ),
 
           const SizedBox(height: 12),
 
-          FutureBuilder(
+          FutureBuilder<List<Map<String, dynamic>>>(
             future: categories,
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
-                return const CircularProgressIndicator();
-              }
-              if (!snap.hasData || (snap.data as List).isEmpty) {
-                return const Text('Kategori belum tersedia');
+                return const LinearProgressIndicator();
               }
 
-              final data = snap.data as List;
-
+              final data = snap.data ?? [];
               return DropdownButtonFormField<String>(
                 value: categoryId,
-                hint: const Text('Pilih Kategori'),
-                items: data.map<DropdownMenuItem<String>>((c) {
-                  return DropdownMenuItem<String>(
-                    value: c['id'],
-                    child: Text(c['name']),
-                  );
-                }).toList(),
+                decoration: const InputDecoration(labelText: 'Kategori'),
+                items: data
+                    .map(
+                      (c) => DropdownMenuItem(
+                        value: c['id'].toString(),
+                        child: Text(c['name'].toString()),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (v) => setState(() => categoryId = v),
               );
             },
@@ -202,6 +230,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
                   : const Text('SIMPAN'),
             ),
           ),
+          const SizedBox(height: 12),
         ],
       ),
     );
