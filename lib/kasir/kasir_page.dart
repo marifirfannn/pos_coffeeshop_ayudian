@@ -43,6 +43,8 @@ class _KasirPageState extends State<KasirPage> {
     });
   }
 
+  void removeItem(CartItem c) => setState(() => cart.remove(c));
+
   /// ================== CONVERT CART ==================
   List<Map<String, dynamic>> cartItems() {
     return cart
@@ -76,7 +78,7 @@ class _KasirPageState extends State<KasirPage> {
     );
   }
 
-  /// ================= PRODUK =================
+  /// ================= PRODUK (WITH IMAGE) =================
   Widget buildProductGrid({required int crossAxis}) {
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -87,7 +89,7 @@ class _KasirPageState extends State<KasirPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final products = snap.data!
+          final products = (snap.data as List)
               .where((p) => p['is_active'] == true)
               .toList();
 
@@ -101,6 +103,11 @@ class _KasirPageState extends State<KasirPage> {
             itemCount: products.length,
             itemBuilder: (_, i) {
               final p = products[i];
+
+              final String? imageUrl = p['image_url']?.toString();
+              final bool hasImage =
+                  imageUrl != null && imageUrl.trim().isNotEmpty;
+
               return InkWell(
                 onTap: () => addToCart(p),
                 borderRadius: BorderRadius.circular(16),
@@ -113,11 +120,44 @@ class _KasirPageState extends State<KasirPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.local_cafe, size: 28),
-                      const SizedBox(height: 8),
+                      // IMAGE / FALLBACK ICON
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: 70,
+                          width: 70,
+                          child: hasImage
+                              ? Image.network(
+                                  imageUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (c, child, loading) {
+                                    if (loading == null) return child;
+                                    return const Center(
+                                      child: SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (_, __, ___) => const Center(
+                                    child: Icon(Icons.local_cafe, size: 28),
+                                  ),
+                                )
+                              : const Center(
+                                  child: Icon(Icons.local_cafe, size: 28),
+                                ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
                       Text(
                         p['name'],
                         textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
@@ -136,7 +176,7 @@ class _KasirPageState extends State<KasirPage> {
     );
   }
 
-  /// ================= CART =================
+  /// ================= CART (DESKTOP) =================
   Widget buildCart() {
     return Container(
       decoration: BoxDecoration(
@@ -164,6 +204,11 @@ class _KasirPageState extends State<KasirPage> {
                         child: ListTile(
                           title: Text(c.name),
                           subtitle: Text('Rp ${c.price} x ${c.qty}'),
+                          leading: IconButton(
+                            tooltip: 'Hapus item',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => removeItem(c),
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -214,15 +259,146 @@ class _KasirPageState extends State<KasirPage> {
     );
   }
 
-  /// ================= MOBILE CART =================
+  /// ================= MOBILE CART (REALTIME FIX + DELETE) =================
   void openCartMobile() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => SizedBox(
-        height: MediaQuery.of(context).size.height * 0.85,
-        child: buildCart(),
-      ),
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setModal) {
+            void incModal(CartItem c) {
+              setModal(() => c.qty++);
+              setState(() {}); // sync FAB label "Cart (x)"
+            }
+
+            void decModal(CartItem c) {
+              setModal(() {
+                if (c.qty > 1) {
+                  c.qty--;
+                } else {
+                  cart.remove(c);
+                }
+              });
+              setState(() {});
+            }
+
+            void deleteModal(CartItem c) {
+              setModal(() => cart.remove(c));
+              setState(() {});
+            }
+
+            return SizedBox(
+              height: MediaQuery.of(context).size.height * 0.85,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border(top: BorderSide(color: Colors.grey.shade800)),
+                ),
+                child: Column(
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Cart',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // List
+                    Expanded(
+                      child: cart.isEmpty
+                          ? const Center(child: Text('Cart kosong'))
+                          : ListView(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              children: cart.map((c) {
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: ListTile(
+                                    title: Text(c.name),
+                                    subtitle: Text('Rp ${c.price} x ${c.qty}'),
+                                    leading: IconButton(
+                                      tooltip: 'Hapus item',
+                                      icon: const Icon(Icons.delete_outline),
+                                      onPressed: () => deleteModal(c),
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.remove),
+                                          onPressed: () => decModal(c),
+                                        ),
+                                        Text('${c.qty}'),
+                                        IconButton(
+                                          icon: const Icon(Icons.add),
+                                          onPressed: () => incModal(c),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                    ),
+
+                    // Footer
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.grey.shade800),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'TOTAL',
+                            style: TextStyle(color: Colors.grey.shade400),
+                          ),
+                          Text(
+                            'Rp $total',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: cart.isEmpty
+                                ? null
+                                : () {
+                                    Navigator.pop(context);
+                                    openCheckout();
+                                  },
+                            child: const Text('CHECKOUT'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -245,6 +421,7 @@ class _KasirPageState extends State<KasirPage> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
+
                   DropdownButtonFormField<String>(
                     value: payment,
                     items: const [
@@ -253,7 +430,9 @@ class _KasirPageState extends State<KasirPage> {
                     ],
                     onChanged: (v) => set(() => payment = v!),
                   ),
+
                   const SizedBox(height: 16),
+
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -281,7 +460,6 @@ class _KasirPageState extends State<KasirPage> {
                           notify(context, e.toString(), error: true);
                         }
                       },
-
                       child: const Text('Bayar'),
                     ),
                   ),
