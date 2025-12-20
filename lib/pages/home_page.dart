@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pos_coffeeshop_ayudian/pages/category_page.dart';
 import '../core/session.dart';
-import '../kasir/kasir_page.dart';
+import 'kasir_page.dart';
 import 'product_page.dart';
 import 'transaction_page.dart';
 import 'stats_page.dart';

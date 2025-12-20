@@ -286,9 +286,10 @@ class _TransactionPageState extends State<TransactionPage> {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest.withOpacity(0.6),
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withOpacity(0.6),
         ),
         child: const Row(
           children: [
@@ -326,9 +327,7 @@ class _TransactionPageState extends State<TransactionPage> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () => runVoid(
-                  title: isPending
-                      ? 'Void Transaksi (Pending)'
-                      : 'Void Transaksi',
+                  title: isPending ? 'Void Transaksi (Pending)' : 'Void Transaksi',
                 ),
                 icon: const Icon(Icons.block),
                 label: const Text('Void'),
@@ -338,9 +337,7 @@ class _TransactionPageState extends State<TransactionPage> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () => runCancel(
-                  title: isPaid
-                      ? 'Cancel Transaksi (Paid)'
-                      : 'Cancel Transaksi',
+                  title: isPaid ? 'Cancel Transaksi (Paid)' : 'Cancel Transaksi',
                 ),
                 icon: const Icon(Icons.cancel),
                 label: const Text('Cancel'),
@@ -369,9 +366,7 @@ class _TransactionPageState extends State<TransactionPage> {
               : '• VOID/REFUND/CANCEL: stok akan kembali',
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(
-              context,
-            ).textTheme.bodySmall?.color?.withOpacity(0.8),
+            color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8),
           ),
         ),
       ],
@@ -386,13 +381,11 @@ class _TransactionPageState extends State<TransactionPage> {
       builder: (sheetCtx) {
         return SafeArea(
           child: Padding(
-            padding: MediaQuery.of(
-              sheetCtx,
-            ).viewInsets.add(const EdgeInsets.fromLTRB(16, 8, 16, 16)),
+            padding: MediaQuery.of(sheetCtx)
+                .viewInsets
+                .add(const EdgeInsets.fromLTRB(16, 8, 16, 16)),
             child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: TransactionService.getTransactionItems(
-                trx['id'].toString(),
-              ),
+              future: TransactionService.getTransactionItems(trx['id'].toString()),
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const SizedBox(
@@ -412,8 +405,7 @@ class _TransactionPageState extends State<TransactionPage> {
                 final date = DateTime.parse(trx['created_at'].toString());
                 final df = DateFormat('dd/MM/yyyy HH:mm');
                 final status =
-                    (trx['status'] ?? TransactionService.statusPending)
-                        .toString();
+                    (trx['status'] ?? TransactionService.statusPending).toString();
                 final reason = (trx['status_reason'] ?? '').toString();
                 final user = Supabase.instance.client.auth.currentUser;
 
@@ -445,19 +437,13 @@ class _TransactionPageState extends State<TransactionPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(context).dividerColor,
-                          ),
+                          border: Border.all(color: Theme.of(context).dividerColor),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _infoRow(
-                              Icons.calendar_month,
-                              'Tanggal',
-                              df.format(date),
-                            ),
+                            _infoRow(Icons.calendar_month, 'Tanggal', df.format(date)),
                             const SizedBox(height: 6),
                             _infoRow(
                               Icons.person,
@@ -517,7 +503,7 @@ class _TransactionPageState extends State<TransactionPage> {
 
                       const SizedBox(height: 12),
 
-                      // Actions (super jelas buat user)
+                      // Actions + Print Button
                       if (user != null) ...[
                         _buildActionButtons(
                           sheetCtx: sheetCtx,
@@ -525,6 +511,22 @@ class _TransactionPageState extends State<TransactionPage> {
                           userId: user.id,
                           status: status,
                         ),
+                        const SizedBox(height: 10),
+
+                        // ✅ BUTTON PRINT (tanpa logika dulu)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              // TODO: implement print logic later
+                              _toast('Fitur print struk belum diaktifkan');
+                            },
+                            icon: const Icon(Icons.print),
+                            label: const Text('Print Struk'),
+                          ),
+                        ),
+
                         const SizedBox(height: 12),
                       ] else ...[
                         Container(
@@ -550,12 +552,25 @@ class _TransactionPageState extends State<TransactionPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
+
+                        // ✅ BUTTON PRINT (tetap tampil walau belum login, optional)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              // TODO: implement print logic later
+                              _toast('Fitur print struk belum diaktifkan');
+                            },
+                            icon: const Icon(Icons.print),
+                            label: const Text('Print Struk'),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
                       ],
 
-                      const Text(
-                        'Item',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
+                      const Text('Item', style: TextStyle(fontWeight: FontWeight.w800)),
                       const SizedBox(height: 6),
 
                       if (items.isEmpty)
@@ -565,8 +580,7 @@ class _TransactionPageState extends State<TransactionPage> {
                         )
                       else
                         ...items.map((i) {
-                          final product =
-                              i['products'] as Map<String, dynamic>?;
+                          final product = i['products'] as Map<String, dynamic>?;
                           final name = product?['name']?.toString() ?? '-';
                           final qty = i['qty'];
                           final price = i['price'];
@@ -575,9 +589,7 @@ class _TransactionPageState extends State<TransactionPage> {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Theme.of(context).dividerColor,
-                              ),
+                              border: Border.all(color: Theme.of(context).dividerColor),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
@@ -586,14 +598,11 @@ class _TransactionPageState extends State<TransactionPage> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                        style: const TextStyle(fontWeight: FontWeight.w700),
                                       ),
                                       const SizedBox(height: 2),
                                       Text('Qty: $qty • Rp $price'),
@@ -658,8 +667,8 @@ class _TransactionPageState extends State<TransactionPage> {
               itemBuilder: (context, i) {
                 final t = data[i];
                 final date = DateTime.parse(t['created_at'].toString());
-                final status = (t['status'] ?? TransactionService.statusPending)
-                    .toString();
+                final status =
+                    (t['status'] ?? TransactionService.statusPending).toString();
 
                 return Card(
                   child: ListTile(
