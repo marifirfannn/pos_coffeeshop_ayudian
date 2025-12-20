@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/categorie_service.dart';
 import '../core/notifier.dart';
+import '../core/pos_ui.dart';
 
 class CategoryPage extends StatefulWidget {
   const CategoryPage({super.key});
@@ -50,48 +51,134 @@ class _CategoryPageState extends State<CategoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kategori'),
-        actions: [IconButton(icon: const Icon(Icons.add), onPressed: add)],
-      ),
-      body: FutureBuilder(
-        future: categories,
-        builder: (_, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snap.hasError) {
-            return Center(child: Text('Error: ${snap.error}'));
-          }
-
-          final data = snap.data!;
-
-          return ListView(
-            children: data.map((c) {
-              return ListTile(
-                title: Text(c['name']),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () => edit(c),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () async {
-                        await CategoryService.deleteCategory(c['id']);
-                        notify(context, 'Kategori dihapus');
-                        setState(load);
-                      },
+      body: PosBackground(
+        child: SafeArea(
+          child: PosSurface(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PosHeaderBar(
+                  title: 'Activity',
+                  crumb: 'Categories',
+                  actions: [
+                    PosIconCircleButton(
+                      icon: Icons.add,
+                      tooltip: 'Tambah kategori',
+                      onPressed: add,
                     ),
                   ],
                 ),
-              );
-            }).toList(),
-          );
-        },
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        decoration: const InputDecoration(
+                          hintText: 'Search category...',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (v) => setState(() {}),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: FutureBuilder(
+                    future: categories,
+                    builder: (context, snap) {
+                      if (snap.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snap.hasError) {
+                        return Center(child: Text('Error: ${snap.error}'));
+                      }
+
+                      final data = (snap.data as List?) ?? [];
+                      if (data.isEmpty) {
+                        return const Center(child: Text('Belum ada kategori'));
+                      }
+
+                      return ListView.separated(
+                        itemCount: data.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, i) {
+                          final c = data[i] as Map;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: PosTokens.border),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5FF),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: const Color(0xFFDAE6FF),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.category,
+                                    color: PosTokens.primary,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        (c['name'] ?? '-').toString(),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          color: PosTokens.text,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'ID: ${(c['id'] ?? '-')}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: PosTokens.subtext,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Edit',
+                                  onPressed: () => edit(c),
+                                  icon: const Icon(Icons.edit_outlined),
+                                ),
+                                IconButton(
+                                  tooltip: 'Hapus',
+                                  onPressed: () => (c),
+                                  icon: const Icon(Icons.delete_outline),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

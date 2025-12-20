@@ -15,8 +15,12 @@ class TransactionService {
   static Future<String> createPendingTransaction({
     required String userId,
     required int total,
-    required String payment, // boleh isi dari awal (cash/qris)
+    required String payment, // cash/qris
     required List<Map<String, dynamic>> items,
+
+    // ✅ baru (sesuai schema DB kamu)
+    required int orderNo,
+    required String customerName,
   }) async {
     final trx = await _db
         .from('transactions')
@@ -25,15 +29,17 @@ class TransactionService {
           'total': total,
           'payment_method': payment,
           'status': statusPending,
+
+          // ✅ masuk DB
+          'order_no': orderNo,
+          'customer_name': customerName.trim(),
         })
         .select()
         .single();
 
     final trxId = trx['id'] as String;
 
-    await _db
-        .from('transaction_items')
-        .insert(
+    await _db.from('transaction_items').insert(
           items
               .map(
                 (i) => {
@@ -62,12 +68,18 @@ class TransactionService {
     required int total,
     required String payment,
     required List<Map<String, dynamic>> items,
+
+    // ✅ baru (biar konsisten)
+    required int orderNo,
+    required String customerName,
   }) async {
     final trxId = await createPendingTransaction(
       userId: userId,
       total: total,
       payment: payment,
       items: items,
+      orderNo: orderNo,
+      customerName: customerName,
     );
 
     // langsung jadi PAID (stok berkurang)
@@ -81,10 +93,9 @@ class TransactionService {
     DateTime? to,
     String? status,
   }) async {
-    var q = _db
-        .from('transactions')
-        .select(
-          'id,user_id,total,payment_method,status,status_reason,created_at',
+    var q = _db.from('transactions').select(
+          // ✅ tambahin order_no & customer_name
+          'id,user_id,total,payment_method,status,status_reason,created_at,order_no,customer_name',
         );
 
     if (from != null) q = q.gte('created_at', from.toIso8601String());
@@ -261,10 +272,10 @@ class TransactionService {
       action: nextStatus == statusPaid
           ? 'paid'
           : nextStatus == statusVoided
-          ? 'void'
-          : nextStatus == statusRefunded
-          ? 'refund'
-          : 'cancel',
+              ? 'void'
+              : nextStatus == statusRefunded
+                  ? 'refund'
+                  : 'cancel',
       reason: (reason ?? '').trim().isEmpty ? null : reason!.trim(),
     );
   }

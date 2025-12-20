@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/supabase.dart';
-import 'core/theme.dart';
+import 'core/pos_theme.dart';
 import 'auth/login_page.dart';
 
 void main() async {
@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
+      theme: PosTheme.light(),
       home: const LoginPage(),
     );
   }
