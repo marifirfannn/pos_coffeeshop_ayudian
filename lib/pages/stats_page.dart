@@ -436,7 +436,8 @@ class _StatsPageState extends State<StatsPage> {
                 if (badgeText != null) ...[
                   const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
                       color: (badgeColor ?? Colors.blue).withOpacity(0.10),
@@ -446,6 +447,8 @@ class _StatsPageState extends State<StatsPage> {
                     ),
                     child: Text(
                       badgeText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
@@ -597,6 +600,148 @@ class _StatsPageState extends State<StatsPage> {
     return DateFormat('dd/MM/yyyy HH:mm').format(created);
   }
 
+  // ---------- Responsive Top Bar ----------
+  Widget _topBar({
+    required List<Map<String, dynamic>> rows,
+    required String todayLabel,
+  }) {
+    return LayoutBuilder(
+      builder: (context, c) {
+        final w = c.maxWidth;
+        final narrow = w < 420; // kunci biar gak overflow di HP kecil
+        final semi = w >= 420 && w < 700;
+
+        final downloadBtn = OutlinedButton.icon(
+          onPressed: () => _openDownloadSheet(rows),
+          icon: const Icon(Icons.download_rounded, size: 18),
+          label: const Text('Download'),
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
+            side: BorderSide(color: _cardBorder),
+            foregroundColor: Colors.black87,
+          ),
+        );
+
+        final dateChip = _cardShell(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_month, size: 18),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  todayLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        final graphToggle = _cardShell(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Show Graph',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: Colors.black.withOpacity(0.75),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Switch.adaptive(
+                value: showGraph,
+                onChanged: (v) => setState(() => showGraph = v),
+              ),
+            ],
+          ),
+        );
+
+        if (narrow) {
+          // HP kecil: pecah jadi 2 baris + Wrap biar aman
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Report',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  downloadBtn,
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  SizedBox(width: min(280, w), child: dateChip),
+                  graphToggle,
+                ],
+              ),
+            ],
+          );
+        }
+
+        if (semi) {
+          // layar sedang: masih row tapi bagian kanan boleh wrap
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Text(
+                  'Report',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+              ),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.end,
+                children: [
+                  downloadBtn,
+                  SizedBox(width: 240, child: dateChip),
+                  graphToggle,
+                ],
+              ),
+            ],
+          );
+        }
+
+        // Tablet / lebar: row normal
+        return Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Report',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+              ),
+            ),
+            downloadBtn,
+            const SizedBox(width: 10),
+            SizedBox(width: 260, child: dateChip),
+            const SizedBox(width: 10),
+            graphToggle,
+          ],
+        );
+      },
+    );
+  }
+
   // ---------- Main UI ----------
   @override
   Widget build(BuildContext context) {
@@ -649,7 +794,6 @@ class _StatsPageState extends State<StatsPage> {
                 final totalTrx = asInt(s['totalTrx']);
 
                 // "Total Customers" & "Net Profit" ini UI-only (karena logic kamu belum punya)
-                // biar mirip desain: customers = total transaksi (approx)
                 final totalCustomers = max(0, totalTrx);
                 final netProfit = omzet;
 
@@ -667,77 +811,10 @@ class _StatsPageState extends State<StatsPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      // ===== Top Bar (Report + Download + Date + Toggle) =====
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Report',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => _openDownloadSheet(rows),
-                            icon: const Icon(Icons.download_rounded, size: 18),
-                            label: const Text('Download'),
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              side: BorderSide(color: _cardBorder),
-                              foregroundColor: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          _cardShell(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.calendar_month, size: 18),
-                                const SizedBox(width: 8),
-                                Text(
-                                  dfTop.format(DateTime.now()),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          _cardShell(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Show Graph',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 12,
-                                    color: Colors.black.withOpacity(0.75),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Switch.adaptive(
-                                  value: showGraph,
-                                  onChanged: (v) => setState(() => showGraph = v),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      // ===== Top Bar (responsive) =====
+                      _topBar(
+                        rows: rows,
+                        todayLabel: dfTop.format(DateTime.now()),
                       ),
 
                       const SizedBox(height: 14),
@@ -754,9 +831,7 @@ class _StatsPageState extends State<StatsPage> {
                                 const Expanded(
                                   child: Text(
                                     'Date Period',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                    ),
+                                    style: TextStyle(fontWeight: FontWeight.w900),
                                   ),
                                 ),
                                 TextButton.icon(
@@ -773,6 +848,8 @@ class _StatsPageState extends State<StatsPage> {
                             const SizedBox(height: 6),
                             Text(
                               titleRange,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 color: Colors.black.withOpacity(0.65),
@@ -788,16 +865,19 @@ class _StatsPageState extends State<StatsPage> {
 
                       const SizedBox(height: 14),
 
-                      // ===== 4 Metrics (seperti dashboard) =====
+                      // ===== Metrics (lebih aman di HP kecil) =====
                       LayoutBuilder(
                         builder: (context, c) {
-                          final isWide = c.maxWidth >= 780;
+                          final w = c.maxWidth;
+                          final isVeryNarrow = w < 360;
+                          final isWide = w >= 780;
                           final gap = isWide ? 12.0 : 10.0;
 
                           final cards = [
                             _metricCard(
                               title: 'Total Sales Amount',
-                              value: NumberFormat('#,###', 'en_US').format(omzet),
+                              value:
+                                  NumberFormat('#,###', 'en_US').format(omzet),
                               icon: Icons.attach_money_rounded,
                               unit: 'IDR',
                               badgeText: '+ ${rupiah(154330)} (UI)',
@@ -805,7 +885,8 @@ class _StatsPageState extends State<StatsPage> {
                             ),
                             _metricCard(
                               title: 'Total Product Sales',
-                              value: NumberFormat('#,###', 'en_US').format(totalTrx),
+                              value:
+                                  NumberFormat('#,###', 'en_US').format(totalTrx),
                               icon: Icons.inventory_2_outlined,
                               unit: 'items',
                               badgeText: '+ ${min(125, totalTrx)} items (UI)',
@@ -813,7 +894,8 @@ class _StatsPageState extends State<StatsPage> {
                             ),
                             _metricCard(
                               title: 'Total Customers',
-                              value: NumberFormat('#,###', 'en_US').format(totalCustomers),
+                              value: NumberFormat('#,###', 'en_US')
+                                  .format(totalCustomers),
                               icon: Icons.groups_2_outlined,
                               unit: 'persons',
                               badgeText: '- 5 persons (UI)',
@@ -821,13 +903,29 @@ class _StatsPageState extends State<StatsPage> {
                             ),
                             _metricCard(
                               title: 'Net Profit',
-                              value: NumberFormat('#,###', 'en_US').format(netProfit),
+                              value: NumberFormat('#,###', 'en_US')
+                                  .format(netProfit),
                               icon: Icons.account_balance_wallet_outlined,
                               unit: 'IDR',
                               badgeText: '+ ${rupiah(3792)} (UI)',
                               badgeColor: Colors.green,
                             ),
                           ];
+
+                          if (isVeryNarrow) {
+                            // HP kecil banget: 1 kolom
+                            return Column(
+                              children: [
+                                cards[0],
+                                const SizedBox(height: 10),
+                                cards[1],
+                                const SizedBox(height: 10),
+                                cards[2],
+                                const SizedBox(height: 10),
+                                cards[3],
+                              ],
+                            );
+                          }
 
                           if (!isWide) {
                             return Column(
@@ -867,7 +965,7 @@ class _StatsPageState extends State<StatsPage> {
 
                       const SizedBox(height: 14),
 
-                      // ===== Graph + Favorite Product (layout mirip gambar) =====
+                      // ===== Graph + Favorite Product =====
                       if (showGraph)
                         LayoutBuilder(
                           builder: (context, c) {
@@ -921,7 +1019,7 @@ class _StatsPageState extends State<StatsPage> {
 
                       if (showGraph) const SizedBox(height: 14),
 
-                      // ===== Kas & Selisih (fitur tetap) =====
+                      // ===== Kas & Selisih =====
                       _cardShell(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,50 +1048,57 @@ class _StatsPageState extends State<StatsPage> {
                               onChanged: (_) => setState(() {}),
                             ),
                             const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _metricCard(
-                                    title: 'Cash Amount',
-                                    value: rupiah(cashAmount),
-                                    icon: Icons.payments,
-                                    unit: null,
-                                    badgeText:
-                                        '${asInt(s['cashTrx'])} trx (data)',
-                                    badgeColor: Colors.blueGrey,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _metricCard(
-                                    title: 'Difference',
-                                    value: rupiah(selisih),
-                                    icon: Icons.compare_arrows_rounded,
-                                    unit: null,
-                                    badgeText: selisih == 0
-                                        ? 'Balance'
-                                        : (selisih > 0 ? 'Lebih' : 'Kurang'),
-                                    badgeColor:
-                                        selisih == 0 ? Colors.green : Colors.orange,
-                                  ),
-                                ),
-                              ],
+                            LayoutBuilder(
+                              builder: (context, c) {
+                                final narrow = c.maxWidth < 520;
+                                final cashCard = _metricCard(
+                                  title: 'Cash Amount',
+                                  value: rupiah(cashAmount),
+                                  icon: Icons.payments,
+                                  unit: null,
+                                  badgeText: '${asInt(s['cashTrx'])} trx (data)',
+                                  badgeColor: Colors.blueGrey,
+                                );
+                                final diffCard = _metricCard(
+                                  title: 'Difference',
+                                  value: rupiah(selisih),
+                                  icon: Icons.compare_arrows_rounded,
+                                  unit: null,
+                                  badgeText: selisih == 0
+                                      ? 'Balance'
+                                      : (selisih > 0 ? 'Lebih' : 'Kurang'),
+                                  badgeColor: selisih == 0
+                                      ? Colors.green
+                                      : Colors.orange,
+                                );
+
+                                if (narrow) {
+                                  return Column(
+                                    children: [
+                                      cashCard,
+                                      const SizedBox(height: 12),
+                                      diffCard,
+                                    ],
+                                  );
+                                }
+
+                                return Row(
+                                  children: [
+                                    Expanded(child: cashCard),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: diffCard),
+                                  ],
+                                );
+                              },
                             ),
                             const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _metricCard(
-                                    title: 'Non-Cash Amount',
-                                    value: rupiah(nonCashAmount),
-                                    icon: Icons.qr_code_rounded,
-                                    unit: null,
-                                    badgeText:
-                                        '${asInt(s['nonCashTrx'])} trx (data)',
-                                    badgeColor: Colors.blueGrey,
-                                  ),
-                                ),
-                              ],
+                            _metricCard(
+                              title: 'Non-Cash Amount',
+                              value: rupiah(nonCashAmount),
+                              icon: Icons.qr_code_rounded,
+                              unit: null,
+                              badgeText: '${asInt(s['nonCashTrx'])} trx (data)',
+                              badgeColor: Colors.blueGrey,
                             ),
                           ],
                         ),
@@ -1021,7 +1126,8 @@ class _StatsPageState extends State<StatsPage> {
                             const SizedBox(height: 10),
                             if (rows.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 18),
                                 child: Text(
                                   'Tidak ada data untuk filter ini',
                                   style: TextStyle(
@@ -1055,9 +1161,12 @@ class _StatsPageState extends State<StatsPage> {
                                             return DataRow(
                                               cells: [
                                                 DataCell(Text('${i + 1}')),
-                                                DataCell(Text(_bestDateFromRow(r))),
-                                                DataCell(Text(_bestNameFromRow(r))),
-                                                DataCell(Text(_bestStatusFromRow(r))),
+                                                DataCell(
+                                                    Text(_bestDateFromRow(r))),
+                                                DataCell(
+                                                    Text(_bestNameFromRow(r))),
+                                                DataCell(Text(
+                                                    _bestStatusFromRow(r))),
                                                 DataCell(
                                                   Text(
                                                     rupiah(asInt(r['total'])),
@@ -1080,11 +1189,14 @@ class _StatsPageState extends State<StatsPage> {
                                       (i) {
                                         final r = rows[i];
                                         return Container(
-                                          margin: const EdgeInsets.only(bottom: 10),
+                                          margin:
+                                              const EdgeInsets.only(bottom: 10),
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(14),
-                                            border: Border.all(color: _cardBorder),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            border:
+                                                Border.all(color: _cardBorder),
                                             color: Colors.white,
                                           ),
                                           child: Row(
@@ -1096,8 +1208,10 @@ class _StatsPageState extends State<StatsPage> {
                                                 decoration: BoxDecoration(
                                                   borderRadius:
                                                       BorderRadius.circular(12),
-                                                  color: Colors.black.withOpacity(0.04),
-                                                  border: Border.all(color: _cardBorder),
+                                                  color:
+                                                      Colors.black.withOpacity(0.04),
+                                                  border: Border.all(
+                                                      color: _cardBorder),
                                                 ),
                                                 child: Text(
                                                   '${i + 1}',
@@ -1115,7 +1229,8 @@ class _StatsPageState extends State<StatsPage> {
                                                     Text(
                                                       _bestNameFromRow(r),
                                                       maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                       style: const TextStyle(
                                                         fontWeight: FontWeight.w900,
                                                       ),
@@ -1142,8 +1257,8 @@ class _StatsPageState extends State<StatsPage> {
                                                             BorderRadius.circular(999),
                                                         color: Colors.black
                                                             .withOpacity(0.03),
-                                                        border:
-                                                            Border.all(color: _cardBorder),
+                                                        border: Border.all(
+                                                            color: _cardBorder),
                                                       ),
                                                       child: Text(
                                                         _bestStatusFromRow(r),
@@ -1277,6 +1392,8 @@ class _GraphSectionState extends State<_GraphSection> {
         const SizedBox(height: 10),
         Text(
           '${df.format(widget.range.start)}  —  ${df.format(widget.range.end)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w800,
@@ -1325,9 +1442,23 @@ class _FavoriteProductSection extends StatelessWidget {
           ),
           child: const Row(
             children: [
-              SizedBox(width: 40, child: Text('Img', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12))),
-              Expanded(child: Text('Product Name', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12))),
-              Text('Total Orders', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+              SizedBox(
+                width: 40,
+                child: Text(
+                  'Img',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Product Name',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                ),
+              ),
+              Text(
+                'Total Orders',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+              ),
             ],
           ),
         ),
@@ -1378,6 +1509,8 @@ class _FavoriteProductSection extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           rupiah(p.revenue),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 12,
@@ -1412,9 +1545,9 @@ class _AreaChart extends StatelessWidget {
       painter: _AreaChartPainter(
         points: points,
         dividerColor: Theme.of(context).dividerColor,
-        labelStyle:
-            (Theme.of(context).textTheme.bodySmall ?? const TextStyle(fontSize: 11))
-                .copyWith(fontSize: 10),
+        labelStyle: (Theme.of(context).textTheme.bodySmall ??
+                const TextStyle(fontSize: 11))
+            .copyWith(fontSize: 10),
       ),
     );
   }
@@ -1553,6 +1686,7 @@ class _AreaChartPainter extends CustomPainter {
       text: TextSpan(text: text, style: style ?? labelStyle),
       textDirection: ui.TextDirection.ltr,
       maxLines: 1,
+      ellipsis: '…',
     )..layout();
     tp.paint(canvas, offset);
   }

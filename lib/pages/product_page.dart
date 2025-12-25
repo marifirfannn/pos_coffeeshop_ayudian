@@ -28,6 +28,12 @@ class _ProductPageState extends State<ProductPage> {
     load();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   void load() {
     products = ProductService.getProducts();
   }
@@ -73,8 +79,7 @@ class _ProductPageState extends State<ProductPage> {
       isScrollControlled: true,
       builder: (ctx) {
         return Padding(
-          padding:
-              MediaQuery.of(ctx).viewInsets.add(const EdgeInsets.all(16)),
+          padding: MediaQuery.of(ctx).viewInsets.add(const EdgeInsets.all(16)),
           child: StatefulBuilder(
             builder: (ctx, setLocal) {
               return Column(
@@ -100,7 +105,6 @@ class _ProductPageState extends State<ProductPage> {
                     ],
                   ),
                   const SizedBox(height: 8),
-
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -203,7 +207,6 @@ class _ProductPageState extends State<ProductPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
@@ -223,6 +226,51 @@ class _ProductPageState extends State<ProductPage> {
     setState(load);
   }
 
+  Future<void> _confirmDelete(Map<String, dynamic> product) async {
+    final name = (product['name'] ?? '-').toString();
+    final id = product['id']?.toString();
+
+    if (id == null || id.isEmpty) {
+      notify(context, 'ID produk tidak valid');
+      return;
+    }
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Hapus produk?',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Text(
+          'Produk "$name" akan dihapus.\nTindakan ini tidak bisa dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('BATAL'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('HAPUS'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    try {
+      // ganti 'products' kalau nama tabelmu beda
+      await Supabase.instance.client.from('products').delete().eq('id', id);
+      notify(context, 'Produk dihapus');
+      setState(load);
+    } catch (e) {
+      notify(context, 'Gagal hapus: $e');
+    }
+  }
+
   void _reset() {
     _searchCtrl.clear();
     setState(() {
@@ -233,14 +281,12 @@ class _ProductPageState extends State<ProductPage> {
 
   List<Map<String, dynamic>> _filter(List<Map<String, dynamic>> data) {
     final q = _query.trim().toLowerCase();
-
     Iterable<Map<String, dynamic>> res = data;
 
     if (q.isNotEmpty) {
-      res = res.where((p) => (p['name'] ?? '')
-          .toString()
-          .toLowerCase()
-          .contains(q));
+      res = res.where(
+        (p) => (p['name'] ?? '').toString().toLowerCase().contains(q),
+      );
     }
 
     if (_status == 'active') {
@@ -279,7 +325,6 @@ class _ProductPageState extends State<ProductPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Search + reset + filter
                 Row(
                   children: [
                     Expanded(
@@ -351,7 +396,6 @@ class _ProductPageState extends State<ProductPage> {
 
                       final filtered = _filter(data);
 
-                      // KPI quick summary (pakai PosKpiCard kamu)
                       final activeCount = data
                           .where((p) => (p['is_active'] ?? true) == true)
                           .length;
@@ -359,34 +403,45 @@ class _ProductPageState extends State<ProductPage> {
                           .where((p) => (p['stock_enabled'] ?? true) != true)
                           .length;
 
+                      double kpiW = 210;
+                      if (w < 380) kpiW = 195;
+                      if (w >= 520) kpiW = (w - 20) / 3;
+
                       return Column(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: PosKpiCard(
-                                  icon: Icons.widgets_outlined,
-                                  label: 'Total Products',
-                                  value: '${data.length}',
+                          // KPI: tetap kesamping (scroll kalau sempit)
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: kpiW,
+                                  child: PosKpiCard(
+                                    icon: Icons.widgets_outlined,
+                                    label: 'Total Products',
+                                    value: '${data.length}',
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: PosKpiCard(
-                                  icon: Icons.check_circle_outline,
-                                  label: 'Active',
-                                  value: '$activeCount',
+                                const SizedBox(width: 10),
+                                SizedBox(
+                                  width: kpiW,
+                                  child: PosKpiCard(
+                                    icon: Icons.check_circle_outline,
+                                    label: 'Active',
+                                    value: '$activeCount',
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: PosKpiCard(
-                                  icon: Icons.inventory_outlined,
-                                  label: 'Stock OFF',
-                                  value: '$stockOffCount',
+                                const SizedBox(width: 10),
+                                SizedBox(
+                                  width: kpiW,
+                                  child: PosKpiCard(
+                                    icon: Icons.inventory_outlined,
+                                    label: 'Stock OFF',
+                                    value: '$stockOffCount',
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 12),
 
@@ -400,18 +455,20 @@ class _ProductPageState extends State<ProductPage> {
                                     onPressed: _reset,
                                   )
                                 : (isWide
-                                    ? _ProductGrid(
-                                        data: filtered,
-                                        canEdit: user != null,
-                                        onEdit: openEdit,
-                                        onStock: openStockManager,
-                                      )
-                                    : _ProductList(
-                                        data: filtered,
-                                        canEdit: user != null,
-                                        onEdit: openEdit,
-                                        onStock: openStockManager,
-                                      )),
+                                      ? _ProductGrid(
+                                          data: filtered,
+                                          canEdit: user != null,
+                                          onEdit: openEdit,
+                                          onStock: openStockManager,
+                                          onDelete: _confirmDelete,
+                                        )
+                                      : _ProductList(
+                                          data: filtered,
+                                          canEdit: user != null,
+                                          onEdit: openEdit,
+                                          onStock: openStockManager,
+                                          onDelete: _confirmDelete,
+                                        )),
                           ),
                         ],
                       );
@@ -427,54 +484,54 @@ class _ProductPageState extends State<ProductPage> {
   }
 }
 
-/// ===================
-/// LIST VIEW
-/// ===================
 class _ProductList extends StatelessWidget {
   final List<Map<String, dynamic>> data;
   final bool canEdit;
   final void Function(Map<String, dynamic>) onEdit;
   final void Function(Map<String, dynamic>) onStock;
+  final void Function(Map<String, dynamic>) onDelete;
 
   const _ProductList({
     required this.data,
     required this.canEdit,
     required this.onEdit,
     required this.onStock,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
       itemCount: data.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      padding: const EdgeInsets.only(bottom: 16),
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
         final p = data[i];
-        return _ProductCard(
+        return _CompactProductTile(
           product: p,
           canEdit: canEdit,
           onEdit: () => onEdit(p),
           onStock: () => onStock(p),
+          onDelete: () => onDelete(p),
         );
       },
     );
   }
 }
 
-/// ===================
-/// GRID VIEW (tablet+)
-/// ===================
 class _ProductGrid extends StatelessWidget {
   final List<Map<String, dynamic>> data;
   final bool canEdit;
   final void Function(Map<String, dynamic>) onEdit;
   final void Function(Map<String, dynamic>) onStock;
+  final void Function(Map<String, dynamic>) onDelete;
 
   const _ProductGrid({
     required this.data,
     required this.canEdit,
     required this.onEdit,
     required this.onStock,
+    required this.onDelete,
   });
 
   @override
@@ -485,47 +542,54 @@ class _ProductGrid extends StatelessWidget {
     if (w >= 1400) cols = 4;
 
     return GridView.builder(
+      padding: const EdgeInsets.only(bottom: 16),
       itemCount: data.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: cols,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 2.35,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 3.0, // lebih gepeng & compact
       ),
       itemBuilder: (context, i) {
         final p = data[i];
-        return _ProductCard(
+        return _CompactProductTile(
           product: p,
           canEdit: canEdit,
           onEdit: () => onEdit(p),
           onStock: () => onStock(p),
-          compactActions: true,
+          onDelete: () => onDelete(p),
+          forceMenu: true, // grid: pakai menu biar rapih
         );
       },
     );
   }
 }
 
-/// ===================
-/// PRODUCT CARD
-/// ===================
-class _ProductCard extends StatelessWidget {
+enum _TileAct { stock, edit, delete }
+
+class _CompactProductTile extends StatelessWidget {
   final Map<String, dynamic> product;
   final bool canEdit;
   final VoidCallback onEdit;
   final VoidCallback onStock;
-  final bool compactActions;
+  final VoidCallback onDelete;
 
-  const _ProductCard({
+  /// kalau true, action selalu jadi menu (⋮)
+  final bool forceMenu;
+
+  const _CompactProductTile({
     required this.product,
     required this.canEdit,
     required this.onEdit,
     required this.onStock,
-    this.compactActions = false,
+    required this.onDelete,
+    this.forceMenu = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+
     final name = (product['name'] ?? '-').toString();
     final price = product['price'] ?? 0;
 
@@ -535,153 +599,202 @@ class _ProductCard extends StatelessWidget {
 
     final imageUrl = (product['image_url'] ?? '').toString();
 
-    final statusBg = isActive ? const Color(0xFFEAFBF0) : const Color(0xFFF1F5F9);
+    final statusBg = isActive
+        ? const Color(0xFFEAFBF0)
+        : const Color(0xFFF1F5F9);
     final statusBd = isActive ? const Color(0xFF86EFAC) : PosTokens.border;
     final statusTx = isActive ? const Color(0xFF16A34A) : PosTokens.subtext;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: PosTokens.border),
-      ),
-      child: Row(
-        children: [
-          _Thumb(imageUrl: imageUrl),
-          const SizedBox(width: 12),
+    final showMenu = forceMenu || w < 380;
 
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
+    Widget tinyIconBtn(IconData icon, String tip, VoidCallback onTap) {
+      return IconButton(
+        tooltip: tip,
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+        splashRadius: 18,
+      );
+    }
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: canEdit ? onEdit : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: PosTokens.border),
+          ),
+          child: Row(
+            children: [
+              _TinyThumb(imageUrl: imageUrl),
+              const SizedBox(width: 10),
+
+              // content
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: PosTokens.text,
-                        ),
+                    // ✅ HANYA NAMA (tanpa badge)
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: PosTokens.text,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                    const SizedBox(height: 4),
+                    Text(
+                      'Rp $price',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: PosTokens.subtext,
                       ),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: statusBd),
-                      ),
-                      child: Text(
-                        isActive ? 'Active' : 'Inactive',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: statusTx,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      stockEnabled ? 'Stock: $stock' : 'Stock: OFF',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: stockEnabled
+                            ? PosTokens.subtext
+                            : const Color(0xFFEA580C),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Rp $price',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: PosTokens.subtext,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  stockEnabled ? 'Stock: $stock' : 'Stock: OFF',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: stockEnabled
-                        ? PosTokens.subtext
-                        : const Color(0xFFEA580C),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          if (canEdit) ...[
-            const SizedBox(width: 10),
-            if (compactActions)
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  PosIconCircleButton(
-                    icon: Icons.inventory_outlined,
-                    tooltip: 'Stock',
-                    onPressed: onStock,
-                  ),
-                  const SizedBox(height: 8),
-                  PosIconCircleButton(
-                    icon: Icons.edit,
-                    tooltip: 'Edit',
-                    onPressed: onEdit,
-                  ),
-                ],
-              )
-            else
-              Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: onStock,
-                    icon: const Icon(Icons.inventory_outlined, size: 18),
-                    label: const Text('Stock'),
-                  ),
-                  const SizedBox(width: 10),
-                  FilledButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit'),
-                  ),
-                ],
               ),
-          ],
-        ],
+
+              if (canEdit) ...[
+                const SizedBox(width: 6),
+                if (showMenu)
+                  PopupMenuButton<_TileAct>(
+                    tooltip: 'Aksi',
+                    onSelected: (v) {
+                      if (v == _TileAct.stock) onStock();
+                      if (v == _TileAct.edit) onEdit();
+                      if (v == _TileAct.delete) onDelete();
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: _TileAct.stock,
+                        child: Text('Stock'),
+                      ),
+                      PopupMenuItem(value: _TileAct.edit, child: Text('Edit')),
+                      PopupMenuItem(
+                        value: _TileAct.delete,
+                        child: Text('Hapus'),
+                      ),
+                    ],
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: PosTokens.border),
+                      ),
+                      child: const Icon(Icons.more_vert, size: 18),
+                    ),
+                  )
+                else
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: PosTokens.border),
+                        ),
+                        child: tinyIconBtn(
+                          Icons.inventory_outlined,
+                          'Stock',
+                          onStock,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: PosTokens.border),
+                        ),
+                        child: tinyIconBtn(Icons.edit, 'Edit', onEdit),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: PosTokens.border),
+                        ),
+                        child: tinyIconBtn(
+                          Icons.delete_outline,
+                          'Hapus',
+                          onDelete,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _Thumb extends StatelessWidget {
+class _TinyThumb extends StatelessWidget {
   final String imageUrl;
 
-  const _Thumb({required this.imageUrl});
+  const _TinyThumb({required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 54,
-      height: 54,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: PosTokens.border),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: imageUrl.isNotEmpty
             ? Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.local_cafe, color: PosTokens.subtext),
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.local_cafe,
+                  color: PosTokens.subtext,
+                  size: 18,
+                ),
               )
-            : const Icon(Icons.local_cafe, color: PosTokens.subtext),
+            : const Icon(Icons.local_cafe, color: PosTokens.subtext, size: 18),
       ),
     );
   }
@@ -776,8 +889,11 @@ class _ErrorBox extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
-                  size: 34, color: Color(0xFFEA580C)),
+              const Icon(
+                Icons.error_outline,
+                size: 34,
+                color: Color(0xFFEA580C),
+              ),
               const SizedBox(height: 10),
               const Text(
                 'Gagal memuat data',

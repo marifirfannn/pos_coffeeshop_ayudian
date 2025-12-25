@@ -38,55 +38,55 @@ class _HomePageState extends State<HomePage> {
           ];
 
     final destinations = isAdmin
-        ? const <NavigationDestination>[
-            NavigationDestination(
-              icon: Icon(Icons.store_outlined),
-              selectedIcon: Icon(Icons.store),
-              label: 'Kasir',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.inventory_2_outlined),
-              selectedIcon: Icon(Icons.inventory_2),
-              label: 'Produk',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.category_outlined),
-              selectedIcon: Icon(Icons.category),
-              label: 'Kategori',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long),
-              label: 'Transaksi',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Report',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profil',
-            ),
-          ]
-        : const <NavigationDestination>[
-            NavigationDestination(
-              icon: Icon(Icons.store_outlined),
-              selectedIcon: Icon(Icons.store),
-              label: 'Kasir',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long),
-              label: 'Transaksi',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profil',
-            ),
-          ];
+    ? const <NavigationDestination>[
+        NavigationDestination(
+          icon: Icon(Icons.point_of_sale_outlined),
+          selectedIcon: Icon(Icons.point_of_sale),
+          label: 'Kasir',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.widgets_outlined),
+          selectedIcon: Icon(Icons.widgets),
+          label: 'Produk',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.grid_view_outlined),
+          selectedIcon: Icon(Icons.grid_view),
+          label: 'Kategori',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.receipt_outlined),
+          selectedIcon: Icon(Icons.receipt),
+          label: 'Transaksi',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.insights_outlined),
+          selectedIcon: Icon(Icons.insights),
+          label: 'Report',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.account_circle_outlined),
+          selectedIcon: Icon(Icons.account_circle),
+          label: 'Profil',
+        ),
+      ]
+    : const <NavigationDestination>[
+        NavigationDestination(
+          icon: Icon(Icons.point_of_sale_outlined),
+          selectedIcon: Icon(Icons.point_of_sale),
+          label: 'Kasir',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.receipt_outlined),
+          selectedIcon: Icon(Icons.receipt),
+          label: 'Transaksi',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.account_circle_outlined),
+          selectedIcon: Icon(Icons.account_circle),
+          label: 'Profil',
+        ),
+      ];
 
     return PosBackground(
       child: Scaffold(
@@ -102,9 +102,9 @@ class _HomePageState extends State<HomePage> {
                 border: Border.all(color: PosTokens.border),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x16000000),
+                    color: Color.fromARGB(0, 0, 0, 0),
                     blurRadius: 24,
-                    offset: Offset(0, 14),
+                    offset: Offset(0, 0),
                   )
                 ],
               ),

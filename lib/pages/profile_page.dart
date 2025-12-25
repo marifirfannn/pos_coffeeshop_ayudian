@@ -22,9 +22,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     if (user == null) {
       return const PosBackground(
-        child: Scaffold(
-          body: Center(child: Text('Session tidak ditemukan')),
-        ),
+        child: Scaffold(body: Center(child: Text('Session tidak ditemukan'))),
       );
     }
 
@@ -58,7 +56,10 @@ class _ProfilePageState extends State<ProfilePage> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: const Color(0xFFDAE6FF)),
                         ),
-                        child: const Icon(Icons.person, color: PosTokens.primary),
+                        child: const Icon(
+                          Icons.person,
+                          color: PosTokens.primary,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -66,7 +67,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              (user!.userMetadata?['name'] ?? 'User').toString(),
+                              (user!.userMetadata?['name'] ?? 'User')
+                                  .toString(),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 16,
@@ -86,7 +88,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEAF0FF),
                           borderRadius: BorderRadius.circular(999),
@@ -97,7 +102,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF1D4ED8),
+                            color: Color(0xFF2F6BFF),
                           ),
                         ),
                       ),
@@ -109,9 +114,17 @@ class _ProfilePageState extends State<ProfilePage> {
                   width: double.infinity,
                   height: 48,
                   child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444), // merah
+                      foregroundColor: Colors.white,
+                    ),
                     onPressed: () async {
                       await Supabase.instance.client.auth.signOut();
-                      Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/',
+                        (_) => false,
+                      );
                     },
                     icon: const Icon(Icons.logout),
                     label: const Text('Logout'),

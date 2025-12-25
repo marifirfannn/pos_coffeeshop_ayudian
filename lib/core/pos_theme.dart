@@ -12,7 +12,7 @@ class PosTheme {
     );
 
     return base.copyWith(
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor: const Color.fromARGB(0, 0, 0, 0),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -79,7 +79,7 @@ class PosTheme {
       navigationBarTheme: base.navigationBarTheme.copyWith(
         height: 66,
         backgroundColor: Colors.transparent,
-        indicatorColor: const Color(0xFFEAF0FF),
+        indicatorColor: const Color.fromARGB(0, 234, 240, 255),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           return TextStyle(
             fontSize: 12,

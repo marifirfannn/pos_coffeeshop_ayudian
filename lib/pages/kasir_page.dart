@@ -40,6 +40,45 @@ class _KasirPageState extends State<KasirPage> {
 
   int get total => cart.fold(0, (s, i) => s + i.subtotal);
 
+  // ====== STYLE TOKENS ======
+  static const _radius = 20.0;
+  static const _fieldRadius = 14.0;
+
+  Color get _bg1 => const Color(0xFFF7FAFF);
+  Color get _bg2 => const Color(0xFFEAF2FF);
+  Color get _surface => Colors.white;
+  Color get _stroke => const Color(0xFFE8EEF7);
+  Color get _primary => const Color(0xFF2F6BFF);
+  Color get _text => const Color(0xFF0F172A);
+  Color get _muted => const Color(0xFF64748B);
+  Color get _fieldFill => const Color(0xFFF6F8FC);
+
+  // ====== FORMATTERS (Rp. 10.000) ======
+  int _toInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.round();
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
+  String _dot(int n) {
+    final neg = n < 0;
+    final s = n.abs().toString();
+    final rev = s.split('').reversed.join();
+    final parts = <String>[];
+    for (int i = 0; i < rev.length; i += 3) {
+      parts.add(rev.substring(i, math.min(i + 3, rev.length)));
+    }
+    final out = parts
+        .map((c) => c.split('').reversed.join())
+        .toList()
+        .reversed
+        .join('.');
+    return neg ? '-$out' : out;
+  }
+
+  String _rp(dynamic v) => 'Rp. ${_dot(_toInt(v))}';
+
   @override
   void initState() {
     super.initState();
@@ -148,19 +187,6 @@ class _KasirPageState extends State<KasirPage> {
     return cart.map((c) => {'id': c.id, 'price': c.price, 'qty': c.qty}).toList();
   }
 
-  // ====== STYLE TOKENS ======
-  static const _radius = 20.0;
-  static const _fieldRadius = 14.0;
-
-  Color get _bg1 => const Color(0xFFF7FAFF);
-  Color get _bg2 => const Color(0xFFEAF2FF);
-  Color get _surface => Colors.white;
-  Color get _stroke => const Color(0xFFE8EEF7);
-  Color get _primary => const Color(0xFF2F6BFF);
-  Color get _text => const Color(0xFF0F172A);
-  Color get _muted => const Color(0xFF64748B);
-  Color get _fieldFill => const Color(0xFFF6F8FC);
-
   /// ✅ FIX: iPad portrait jangan masuk wide split
   _LayoutMode _layoutMode(BuildContext context) {
     final mq = MediaQuery.of(context);
@@ -177,10 +203,9 @@ class _KasirPageState extends State<KasirPage> {
   }
 
   double _gridRatio(int crossAxis) {
-    // ✅ dibuat lebih tinggi biar gak overflow teks/badge
     if (crossAxis >= 4) return 0.92;
     if (crossAxis == 3) return 0.98;
-    return 1.05; // 2 kolom
+    return 1.05;
   }
 
   String _payLabel(String v) {
@@ -357,9 +382,12 @@ class _KasirPageState extends State<KasirPage> {
             children: [
               _headerLeft(compact: true),
               const SizedBox(height: 10),
+
+
               Expanded(
                 child: _buildProductArea(crossAxis: 2),
               ),
+
               // ✅ ruang aman biar grid gak ketutup bar
               SizedBox(height: _mobileCartBarHeight(context) + 10),
             ],
@@ -370,14 +398,13 @@ class _KasirPageState extends State<KasirPage> {
     );
   }
 
-  // ====== TABLET PORTRAIT (FIX OVERFLOW iPad mini/air/surface pro) ======
+  // ====== TABLET PORTRAIT ======
   Widget _buildTabletPortrait() {
     return LayoutBuilder(
       builder: (context, c) {
         final maxH = c.maxHeight;
         const gap = 12.0;
 
-        // bagi tinggi secara aman (tanpa angka -70 yang bikin overflow)
         double topH = maxH * 0.56;
         double bottomH = maxH - topH - gap;
 
@@ -1129,19 +1156,15 @@ class _KasirPageState extends State<KasirPage> {
     );
   }
 
-  /// ✅ product card anti-overflow
+  /// ✅ product card anti-overflow + Rp formatter
   Widget _productCard(Map<String, dynamic> p) {
     final String name = (p['name'] ?? '-').toString();
-    final int priceInt = (p['price'] ?? 0) is int
-        ? p['price'] as int
-        : int.tryParse(p['price'].toString()) ?? 0;
+    final int priceInt = _toInt(p['price']);
     final String? imageUrl = p['image_url']?.toString();
     final bool hasImage = imageUrl != null && imageUrl.trim().isNotEmpty;
 
     final stockEnabled = (p['stock_enabled'] ?? true) == true;
-    final stock = (p['stock'] ?? 0) is int
-        ? p['stock'] as int
-        : int.tryParse(p['stock'].toString()) ?? 0;
+    final stock = _toInt(p['stock']);
     final bool out = stockEnabled && stock <= 0;
 
     const imgRadius = 16.0;
@@ -1207,7 +1230,7 @@ class _KasirPageState extends State<KasirPage> {
               children: [
                 Expanded(
                   child: Text(
-                    'Rp $priceInt',
+                    _rp(priceInt),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: _text, fontWeight: FontWeight.w800),
@@ -1396,15 +1419,15 @@ class _KasirPageState extends State<KasirPage> {
                 padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + (kb > 0 ? 8 : 0)),
                 child: Column(
                   children: [
-                    _line('Subtotal', 'Rp $total'),
+                    _line('Subtotal', _rp(total)),
                     const SizedBox(height: 6),
-                    _line('Discount', 'Rp 0'),
+                    _line('Discount', _rp(0)),
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         Text('TOTAL', style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
                         const Spacer(),
-                        Text('Rp $total', style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
+                        Text(_rp(total), style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -1457,6 +1480,7 @@ class _KasirPageState extends State<KasirPage> {
   }
 
   Widget _cartItemTile(CartItem c) {
+    final int price = _toInt(c.price);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1489,7 +1513,7 @@ class _KasirPageState extends State<KasirPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Rp ${c.price}',
+                  _rp(price),
                   style: TextStyle(
                     color: _muted,
                     fontWeight: FontWeight.w700,
@@ -1629,13 +1653,7 @@ class _KasirPageState extends State<KasirPage> {
     );
   }
 
-  // ====== SAFE AREA BOTTOM ======
-  double _bottomSafe(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    return mq.padding.bottom; // aman untuk device yang punya gesture bar/notch bawah
-  }
-
-  // ====== MOBILE CART BAR (posisi balik kaya sebelumnya) ======
+  // ====== MOBILE CART BAR ======
   double _mobileCartBarHeight(BuildContext context) {
     final h = MediaQuery.of(context).size.height;
     if (h < 520) return 82;
@@ -1649,7 +1667,6 @@ class _KasirPageState extends State<KasirPage> {
     return Positioned(
       left: 12,
       right: 12,
-      // ✅ balik kaya sebelumnya: nempel bawah, keyboard tetap aman
       bottom: kb > 0 ? kb + 12 : 12,
       child: SizedBox(
         height: _mobileCartBarHeight(context),
@@ -1671,7 +1688,9 @@ class _KasirPageState extends State<KasirPage> {
             children: [
               Expanded(
                 child: Text(
-                  cart.isEmpty ? 'Cart kosong' : 'Cart: ${cart.length} item • Rp $total',
+                  cart.isEmpty
+                      ? 'Cart kosong'
+                      : 'Cart: ${cart.length} item • ${_rp(total)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: _text, fontWeight: FontWeight.w800),
@@ -1754,6 +1773,37 @@ class _KasirPageState extends State<KasirPage> {
                             ],
                           ),
                         ),
+
+                        // ✅ NEW: field customer juga ada di modal cart (biar gampang)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: TextField(
+                            controller: _customerCtrl,
+                            textInputAction: TextInputAction.done,
+                            decoration: InputDecoration(
+                              hintText: 'Nama customer...',
+                              prefixIcon: const Icon(Icons.person_rounded),
+                              filled: true,
+                              fillColor: _fieldFill,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(color: _stroke),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(color: _primary),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+
                         Divider(height: 1, color: _stroke),
                         Expanded(
                           child: cart.isEmpty
@@ -1770,6 +1820,7 @@ class _KasirPageState extends State<KasirPage> {
                                   padding: const EdgeInsets.all(16),
                                   itemBuilder: (_, i) {
                                     final c = cart[i];
+                                    final price = _toInt(c.price);
                                     return Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
@@ -1794,7 +1845,7 @@ class _KasirPageState extends State<KasirPage> {
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  'Rp ${c.price} x ${c.qty}',
+                                                  '${_rp(price)} x ${c.qty}',
                                                   style: TextStyle(
                                                     color: _muted,
                                                     fontWeight: FontWeight.w700,
@@ -1830,7 +1881,7 @@ class _KasirPageState extends State<KasirPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _line('TOTAL', 'Rp $total'),
+                              _line('TOTAL', _rp(total)),
                               const SizedBox(height: 10),
                               Row(
                                 children: [
@@ -2002,6 +2053,7 @@ class _KasirPageState extends State<KasirPage> {
             Text('Order Items', style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
             ...cart.map((c) {
+              final price = _toInt(c.price);
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(12),
@@ -2024,13 +2076,13 @@ class _KasirPageState extends State<KasirPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Rp ${c.price} x ${c.qty}',
+                            '${_rp(price)} x ${c.qty}',
                             style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
                     ),
-                    Text('Rp ${c.subtotal}', style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
+                    Text(_rp(c.subtotal), style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
                   ],
                 ),
               );
@@ -2044,15 +2096,15 @@ class _KasirPageState extends State<KasirPage> {
               ),
               child: Column(
                 children: [
-                  _line('Subtotal', 'Rp $total'),
+                  _line('Subtotal', _rp(total)),
                   const SizedBox(height: 6),
-                  _line('Discount', 'Rp 0'),
+                  _line('Discount', _rp(0)),
                   const SizedBox(height: 10),
                   Row(
                     children: [
                       Text('TOTAL', style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
                       const Spacer(),
-                      Text('Rp $total', style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
+                      Text(_rp(total), style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
                     ],
                   ),
                 ],
